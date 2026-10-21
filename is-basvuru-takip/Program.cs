@@ -1,6 +1,7 @@
-using Microsoft.EntityFrameworkCore;
 using is_basvuru_takip.data;
+using is_basvuru_takip.Services;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -9,7 +10,8 @@ builder.Services.AddControllers();
 // Veritabaný baðlantýsýný kaydet: AppDbContext, PostgreSQL'e appsettings.json'daki baðlantý bilgisiyle baðlansýn
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
+// "Biri IBasvuruService isterse ona BasvuruService ver"
+builder.Services.AddScoped<IBasvuruService, BasvuruService>();
 // Kullanýcý sistemini ekle: kullanýcýlar AppDbContext üzerinden veritabanýna kaydedilsin
 builder.Services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<IdentityUser>()
