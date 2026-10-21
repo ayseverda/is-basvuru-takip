@@ -41,7 +41,7 @@ public class BasvurularController : ControllerBase
         }
         var yeniBasvuru = await _service.EkleAsync(dto, userId);
         return Ok(yeniBasvuru);
-        
+
     }
 
     [HttpGet("{id}")]
@@ -84,8 +84,20 @@ public class BasvurularController : ControllerBase
         {
             return NotFound();
         }
-        
+
         return NoContent();
 
+    }
+
+    [HttpGet("ozet")]
+    public async Task<IActionResult> GetOzet()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+        var ozet = await _service.OzetGetirAsync(userId);
+        return Ok(ozet);
     }
 }

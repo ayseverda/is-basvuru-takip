@@ -11,4 +11,6 @@ public interface IBasvuruService
     Task<BasvuruDto> EkleAsync(BasvuruIstekDto dto, string userId);
     Task<bool> GuncelleAsync(int id, BasvuruIstekDto dto, string userId);
     Task<bool> SilAsync(int id, string userId);
+
+    Task<OzetDto> OzetGetirAsync(string userId);
 }

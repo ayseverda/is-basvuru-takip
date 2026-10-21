@@ -123,7 +123,35 @@ public class BasvuruService : IBasvuruService
         _context.Basvurular.Remove(basvuru);
         await _context.SaveChangesAsync();
         return true;
-
     }
+    public async Task<OzetDto> OzetGetirAsync(string userId)
+    {
+        // Sadece bu kullanıcının başvuruları (henüz veritabanına gidilmedi)
+        var sorgu = _context.Basvurular.Where(b => b.UserId == userId);
+
+        // Toplam başvuru sayısı
+        var toplam = await sorgu.CountAsync();
+
+        // Durumlara göre grupla ve say
+        var durumaGore = await sorgu
+            .GroupBy(b => b.Durum)
+            .Select(g => new SayimDto { Deger = (int)g.Key, Sayi = g.Count() })
+            .ToListAsync();
+
+        // Kaynaklara göre grupla ve say
+        var kaynagaGore = await sorgu
+            .GroupBy(b => b.Kaynak)
+            .Select(g => new SayimDto { Deger = (int)g.Key, Sayi = g.Count() })
+            .ToListAsync();
+
+        // Üç sonucu tek kutuda döndür
+        return new OzetDto
+        {
+            Toplam = toplam,
+            DurumaGore = durumaGore,
+            KaynagaGore = kaynagaGore
+        };
+    }
+
 
 }
