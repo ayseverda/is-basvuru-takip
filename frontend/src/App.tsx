@@ -19,6 +19,10 @@ type Basvuru = {
   sehir: number | null
 }
 
+// Backend'deki SayimDto ve OzetDto'nun karşılıkları
+type Sayim = { deger: number; sayi: number }
+type Ozet = { toplam: number; durumaGore: Sayim[]; kaynagaGore: Sayim[] }
+
 // Backend'deki BasvuruIstekDto'nun karşılığı (Id yok)
 type BasvuruIstek = Omit<Basvuru, 'id'>
 
@@ -212,6 +216,15 @@ function Panel({ basvurular, yenile }: { basvurular: Basvuru[]; yenile: () => vo
   }
   const [filtre, setFiltre] = useState<number | 'hepsi'>('hepsi')
   const [arama, setArama] = useState('')
+  const [ozet, setOzet] = useState<Ozet | null>(null)
+
+  // Başvurular her değiştiğinde (ekleme, silme, durum değişikliği) özeti backend'den yeniden çek
+  useEffect(() => {
+    fetch('/api/Basvurular/ozet')
+      .then((cevap) => (cevap.ok ? cevap.json() : null))
+      .then((veri) => setOzet(veri))
+      .catch(() => setOzet(null))
+  }, [basvurular])
   const [siralama, setSiralama] = useState<{ sutun: Sutun; artan: boolean }>({ sutun: 'basvuruTarihi', artan: false })
 
   // Önce durum filtresi ve arama, sonra sıralama
@@ -272,6 +285,23 @@ function Panel({ basvurular, yenile }: { basvurular: Basvuru[]; yenile: () => vo
         <button className="ana" onClick={yeniAc}>+ Yeni başvuru</button>
       </header>
 
+      {ozet && ozet.toplam > 0 && (
+        <section className="grafikler">
+          <PastaGrafik
+            baslik="Durumlara göre"
+            satirlar={ozet.durumaGore}
+            etiketler={DURUMLAR}
+            renkler={DURUM_PASTA_RENK}
+          />
+          <PastaGrafik
+            baslik="Kaynaklara göre"
+            satirlar={ozet.kaynagaGore}
+            etiketler={KAYNAKLAR}
+            renkler={KAYNAK_PASTA_RENK}
+          />
+        </section>
+      )}
+
       <div className="arac-cubugu">
         <input
           type="search"
@@ -288,6 +318,22 @@ function Panel({ basvurular, yenile }: { basvurular: Basvuru[]; yenile: () => vo
 
       <div className="tablo-kutu">
         <table className="tablo">
+          {/* Sabit genişlikler: filtreleyince sütunlar yer değiştirmesin */}
+          <colgroup>
+            <col style={{ width: 44 }} />
+            <col style={{ width: 104 }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '17%' }} />
+            <col style={{ width: 176 }} />
+            <col style={{ width: 112 }} />
+            <col style={{ width: 84 }} />
+            <col style={{ width: 96 }} />
+            <col style={{ width: 104 }} />
+            <col />
+            <col style={{ width: 60 }} />
+            <col style={{ width: 40 }} />
+            <col style={{ width: 40 }} />
+          </colgroup>
           <thead>
             <tr>
               <th className="no">#</th>
@@ -337,6 +383,62 @@ function Panel({ basvurular, yenile }: { basvurular: Basvuru[]; yenile: () => vo
       </div>
 
       {formAcik && <BasvuruFormu duzenlenen={duzenlenen} kapat={() => setFormAcik(false)} kaydedildi={yenile} />}
+    </div>
+  )
+}
+
+// ---------- Özet grafiği (pasta) ----------
+
+// Her durum ve kaynak için sabit bir renk (enum sırasıyla aynı)
+const DURUM_PASTA_RENK = ['#6d8cff', '#ff7b7b', '#5fcf86', '#b292ff', '#f0c04f', '#2fbfa0', '#7b8494', '#c98a5e']
+const KAYNAK_PASTA_RENK = ['#6d8cff', '#4fb3e8', '#f0a637', '#5fcf86', '#e07bd0', '#7b8494']
+
+type PastaProps = {
+  baslik: string
+  satirlar: Sayim[]
+  etiketler: string[]
+  renkler: string[]
+}
+
+function PastaGrafik({ baslik, satirlar, etiketler, renkler }: PastaProps) {
+  const toplam = satirlar.reduce((t, s) => t + s.sayi, 0)
+  const sirali = [...satirlar].sort((a, b) => b.sayi - a.sayi)
+
+  // Her dilimin başladığı ve bittiği yüzdeyi hesaplayıp tek bir conic-gradient oluştur
+  let baslangic = 0
+  const dilimler = sirali.map((s) => {
+    const bitis = baslangic + (s.sayi / toplam) * 100
+    const parca = `${renkler[s.deger] ?? '#7b8494'} ${baslangic}% ${bitis}%`
+    baslangic = bitis
+    return parca
+  })
+
+  return (
+    <div className="grafik">
+      <h2>{baslik}</h2>
+      <div className="pasta-govde">
+        <div
+          className="pasta"
+          style={{ background: `conic-gradient(${dilimler.join(', ')})` }}
+          role="img"
+          aria-label={`${baslik}: ` + sirali.map((s) => `${etiketler[s.deger]} ${s.sayi}`).join(', ')}
+        >
+          <div className="pasta-orta">
+            <span className="pasta-toplam">{toplam}</span>
+            <span className="pasta-alt">başvuru</span>
+          </div>
+        </div>
+        <ul className="lejant">
+          {sirali.map((s) => (
+            <li key={s.deger}>
+              <span className="lejant-renk" style={{ background: renkler[s.deger] ?? '#7b8494' }} />
+              <span className="lejant-ad">{etiketler[s.deger] ?? `Değer ${s.deger}`}</span>
+              <span className="lejant-sayi">{s.sayi}</span>
+              <span className="lejant-yuzde">%{Math.round((s.sayi / toplam) * 100)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   )
 }
