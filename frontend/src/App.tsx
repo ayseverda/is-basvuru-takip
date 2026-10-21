@@ -1,0 +1,451 @@
+import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
+import './App.css'
+
+// ---------- Tipler ----------
+
+// Backend'deki BasvuruDto'nun ön yüzdeki karşılığı
+type Basvuru = {
+  id: number
+  sirketAdi: string
+  pozisyon: string
+  basvuruTarihi: string
+  maas: number | null
+  durum: number
+  sekil: number
+  kaynak: number
+  ilanLinki: string | null
+  notlar: string | null
+  sehir: number | null
+}
+
+// Backend'deki BasvuruIstekDto'nun karşılığı (Id yok)
+type BasvuruIstek = Omit<Basvuru, 'id'>
+
+// ---------- Enum etiketleri ----------
+// Sıra, backend'deki enum sırasıyla birebir aynı olmalı (0, 1, 2...)
+
+const DURUMLAR = [
+  'Başvuruldu',
+  'Reddedildi',
+  'Mülakat',
+  'Test aşamasında',
+  'Teklif alındı',
+  'Teklif kabul edildi',
+  'Cevap yok',
+  'Teklif reddedildi',
+]
+const SEKILLER = ['Ofisten', 'Uzaktan', 'Hibrit']
+const KAYNAKLAR = ['Kariyer.net', 'LinkedIn', 'Indeed', 'Şirket sitesi', 'Mail', 'Diğer']
+const SEHIRLER = ['Ankara', 'İstanbul', 'Sakarya', 'Bursa', 'Kocaeli', 'Diğer']
+
+// Durumlara göre rozet rengi (CSS sınıf adı)
+const DURUM_RENGI = ['mavi', 'kirmizi', 'yesil', 'mor', 'altin', 'yesil', 'gri', 'gri']
+
+// Bugünün tarihi "YYYY-MM-DD" biçiminde (form varsayılanı için)
+function bugun(): string {
+  const d = new Date()
+  const ay = String(d.getMonth() + 1).padStart(2, '0')
+  const gun = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${ay}-${gun}`
+}
+
+function bosForm(): BasvuruIstek {
+  return {
+    sirketAdi: '',
+    pozisyon: '',
+    basvuruTarihi: bugun(),
+    maas: null,
+    durum: 0,
+    sekil: 0,
+    kaynak: 1,
+    ilanLinki: null,
+    notlar: null,
+    sehir: 0,
+  }
+}
+
+// Backend'in 400 cevabındaki doğrulama hatalarını tek listeye çevirir
+async function hataMesajlari(cevap: Response): Promise<string[]> {
+  try {
+    const veri = await cevap.json()
+    if (veri.errors) {
+      return Object.values(veri.errors as Record<string, string[]>).flat()
+    }
+  } catch {
+    // Gövde JSON değilse aşağıdaki genel mesaj kullanılır
+  }
+  return [`Bir hata oluştu (kod ${cevap.status}).`]
+}
+
+// ---------- Ana bileşen ----------
+
+function App() {
+  // null: henüz kontrol edilmedi, false: giriş yok, true: giriş var
+  const [girisVar, setGirisVar] = useState<boolean | null>(null)
+  const [basvurular, setBasvurular] = useState<Basvuru[]>([])
+
+  // Backend'den başvuruları çeker; 401 gelirse giriş ekranına döner
+  async function basvurulariYukle() {
+    const cevap = await fetch('/api/Basvurular')
+    if (cevap.status === 401) {
+      setGirisVar(false)
+      return
+    }
+    setBasvurular(await cevap.json())
+    setGirisVar(true)
+  }
+
+  // Sayfa ilk açıldığında bir kez çalışır
+  useEffect(() => {
+    basvurulariYukle()
+  }, [])
+
+  if (girisVar === null) {
+    return <div className="ortala">Yükleniyor…</div>
+  }
+
+  if (!girisVar) {
+    return <GirisEkrani girisYapildi={basvurulariYukle} />
+  }
+
+  return <Panel basvurular={basvurular} yenile={basvurulariYukle} />
+}
+
+// ---------- Giriş / kayıt ekranı ----------
+
+function GirisEkrani({ girisYapildi }: { girisYapildi: () => void }) {
+  const [email, setEmail] = useState('')
+  const [sifre, setSifre] = useState('')
+  const [kayitModu, setKayitModu] = useState(false)
+  const [hatalar, setHatalar] = useState<string[]>([])
+  const [bilgi, setBilgi] = useState('')
+
+  async function gonder(e: FormEvent) {
+    e.preventDefault()
+    setHatalar([])
+    setBilgi('')
+
+    const govde = JSON.stringify({ email, password: sifre })
+    const basliklar = { 'Content-Type': 'application/json' }
+
+    if (kayitModu) {
+      const cevap = await fetch('/register', { method: 'POST', headers: basliklar, body: govde })
+      if (!cevap.ok) {
+        setHatalar(await hataMesajlari(cevap))
+        return
+      }
+      setBilgi('Kayıt başarılı, şimdi giriş yapabilirsin.')
+      setKayitModu(false)
+      return
+    }
+
+    // useCookies=true: giriş bilgisi tarayıcıda çerez olarak saklanır
+    const cevap = await fetch('/login?useCookies=true', { method: 'POST', headers: basliklar, body: govde })
+    if (!cevap.ok) {
+      setHatalar(['E-posta ya da şifre hatalı.'])
+      return
+    }
+    girisYapildi()
+  }
+
+  return (
+    <div className="ortala">
+      <form className="kart giris" onSubmit={gonder}>
+        <h1>Başvuru Takip</h1>
+        <p className="soluk">{kayitModu ? 'Yeni hesap oluştur' : 'Hesabına giriş yap'}</p>
+
+        <label>
+          E-posta
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        </label>
+        <label>
+          Şifre
+          <input type="password" value={sifre} onChange={(e) => setSifre(e.target.value)} required />
+        </label>
+
+        {hatalar.length > 0 && (
+          <ul className="hatalar">
+            {hatalar.map((h) => <li key={h}>{h}</li>)}
+          </ul>
+        )}
+        {bilgi && <p className="bilgi">{bilgi}</p>}
+
+        <button type="submit" className="ana">{kayitModu ? 'Kayıt ol' : 'Giriş yap'}</button>
+        <button type="button" className="metin" onClick={() => setKayitModu(!kayitModu)}>
+          {kayitModu ? 'Hesabın var mı? Giriş yap' : 'Hesabın yok mu? Kayıt ol'}
+        </button>
+      </form>
+    </div>
+  )
+}
+
+// ---------- Başvuru tablosu ----------
+
+// Tablodaki sıralanabilir sütunlar
+type Sutun = 'basvuruTarihi' | 'sirketAdi' | 'pozisyon' | 'durum' | 'kaynak' | 'sekil' | 'sehir' | 'maas'
+
+const SUTUNLAR: { ad: Sutun; baslik: string }[] = [
+  { ad: 'basvuruTarihi', baslik: 'Tarih' },
+  { ad: 'sirketAdi', baslik: 'Şirket' },
+  { ad: 'pozisyon', baslik: 'Pozisyon' },
+  { ad: 'durum', baslik: 'Durum' },
+  { ad: 'kaynak', baslik: 'Kaynak' },
+  { ad: 'sekil', baslik: 'Şekil' },
+  { ad: 'sehir', baslik: 'Şehir' },
+  { ad: 'maas', baslik: 'Maaş' },
+]
+
+function Panel({ basvurular, yenile }: { basvurular: Basvuru[]; yenile: () => void }) {
+  const [formAcik, setFormAcik] = useState(false)
+  // null ise yeni başvuru, dolu ise o başvuru düzenleniyor
+  const [duzenlenen, setDuzenlenen] = useState<Basvuru | null>(null)
+
+  function yeniAc() {
+    setDuzenlenen(null)
+    setFormAcik(true)
+  }
+
+  function duzenleAc(b: Basvuru) {
+    setDuzenlenen(b)
+    setFormAcik(true)
+  }
+  const [filtre, setFiltre] = useState<number | 'hepsi'>('hepsi')
+  const [arama, setArama] = useState('')
+  const [siralama, setSiralama] = useState<{ sutun: Sutun; artan: boolean }>({ sutun: 'basvuruTarihi', artan: false })
+
+  // Önce durum filtresi ve arama, sonra sıralama
+  const aranan = arama.trim().toLocaleLowerCase('tr-TR')
+  const gosterilen = basvurular
+    .filter((b) => filtre === 'hepsi' || b.durum === filtre)
+    .filter((b) =>
+      aranan === '' ||
+      b.sirketAdi.toLocaleLowerCase('tr-TR').includes(aranan) ||
+      b.pozisyon.toLocaleLowerCase('tr-TR').includes(aranan) ||
+      (b.notlar ?? '').toLocaleLowerCase('tr-TR').includes(aranan))
+    .sort((a, b) => {
+      const x = a[siralama.sutun]
+      const y = b[siralama.sutun]
+      // Boş değerler her zaman en alta
+      if (x === null) return 1
+      if (y === null) return -1
+      const fark = typeof x === 'string' ? x.localeCompare(y as string, 'tr') : x - (y as number)
+      return siralama.artan ? fark : -fark
+    })
+
+  // Başlığa tıklanınca o sütuna göre sırala; aynı başlığa tekrar tıklanınca yön değişir
+  function sirala(sutun: Sutun) {
+    setSiralama(siralama.sutun === sutun ? { sutun, artan: !siralama.artan } : { sutun, artan: true })
+  }
+
+  // Özet sayıları
+  const mulakatSayisi = basvurular.filter((b) => b.durum === 2 || b.durum === 3).length
+  const bekleyenSayisi = basvurular.filter((b) => b.durum === 0).length
+  const redSayisi = basvurular.filter((b) => b.durum === 1).length
+
+  // Hücredeki açılır listeden durum değiştirildiğinde PUT gönderir
+  async function durumDegistir(b: Basvuru, yeniDurum: number) {
+    const { id, ...geriKalan } = b
+    await fetch(`/api/Basvurular/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...geriKalan, durum: yeniDurum }),
+    })
+    yenile()
+  }
+
+  async function sil(b: Basvuru) {
+    if (!confirm(`${b.sirketAdi} başvurusu silinsin mi?`)) return
+    await fetch(`/api/Basvurular/${b.id}`, { method: 'DELETE' })
+    yenile()
+  }
+
+  return (
+    <div className="sayfa">
+      <header className="ust">
+        <div>
+          <h1>Başvurularım</h1>
+          <p className="soluk kucuk ozet-satir">
+            {basvurular.length} toplam · {bekleyenSayisi} cevap bekliyor · {mulakatSayisi} mülakat/test · {redSayisi} ret
+          </p>
+        </div>
+        <button className="ana" onClick={yeniAc}>+ Yeni başvuru</button>
+      </header>
+
+      <div className="arac-cubugu">
+        <input
+          type="search"
+          placeholder="Şirket, pozisyon veya notta ara…"
+          value={arama}
+          onChange={(e) => setArama(e.target.value)}
+        />
+        <select value={filtre} onChange={(e) => setFiltre(e.target.value === 'hepsi' ? 'hepsi' : Number(e.target.value))}>
+          <option value="hepsi">Tüm durumlar</option>
+          {DURUMLAR.map((d, i) => <option key={d} value={i}>{d}</option>)}
+        </select>
+        <span className="soluk kucuk">{gosterilen.length} satır</span>
+      </div>
+
+      <div className="tablo-kutu">
+        <table className="tablo">
+          <thead>
+            <tr>
+              <th className="no">#</th>
+              {SUTUNLAR.map((s) => (
+                <th key={s.ad} onClick={() => sirala(s.ad)} className="siralanir">
+                  {s.baslik}
+                  <span className="ok">{siralama.sutun === s.ad ? (siralama.artan ? '▲' : '▼') : ''}</span>
+                </th>
+              ))}
+              <th>Not</th>
+              <th>İlan</th>
+              <th></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {gosterilen.length === 0 && (
+              <tr><td colSpan={13} className="bos">Gösterilecek başvuru yok.</td></tr>
+            )}
+            {gosterilen.map((b, sira) => (
+              <tr key={b.id} onDoubleClick={() => duzenleAc(b)} title="Düzenlemek için çift tıkla">
+                <td className="no">{sira + 1}</td>
+                <td className="tarih">{b.basvuruTarihi}</td>
+                <td className="kalin sarar">{b.sirketAdi}</td>
+                <td className="sarar">{b.pozisyon}</td>
+                <td>
+                  <select
+                    className={`rozet ${DURUM_RENGI[b.durum]}`}
+                    value={b.durum}
+                    onChange={(e) => durumDegistir(b, Number(e.target.value))}
+                  >
+                    {DURUMLAR.map((d, i) => <option key={d} value={i}>{d}</option>)}
+                  </select>
+                </td>
+                <td>{KAYNAKLAR[b.kaynak]}</td>
+                <td>{SEKILLER[b.sekil]}</td>
+                <td>{b.sehir !== null ? SEHIRLER[b.sehir] : <span className="soluk">–</span>}</td>
+                <td className="sayi-hucre">{b.maas !== null ? `${b.maas.toLocaleString('tr-TR')} ₺` : <span className="soluk">–</span>}</td>
+                <td className="not-hucre" title={b.notlar ?? ''}><span>{b.notlar ?? ''}</span></td>
+                <td>{b.ilanLinki && <a href={b.ilanLinki} target="_blank" rel="noreferrer">Aç ↗</a>}</td>
+                <td><button className="metin" onClick={() => duzenleAc(b)} title="Düzenle">✎</button></td>
+                <td><button className="metin tehlike" onClick={() => sil(b)} title="Sil">✕</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {formAcik && <BasvuruFormu duzenlenen={duzenlenen} kapat={() => setFormAcik(false)} kaydedildi={yenile} />}
+    </div>
+  )
+}
+
+// ---------- Başvuru formu (ekleme ve düzenleme) ----------
+
+type FormProps = {
+  duzenlenen: Basvuru | null
+  kapat: () => void
+  kaydedildi: () => void
+}
+
+function BasvuruFormu({ duzenlenen, kapat, kaydedildi }: FormProps) {
+  // Düzenlemede form mevcut değerlerle, eklemede boş açılır
+  const [form, setForm] = useState<BasvuruIstek>(() => {
+    if (!duzenlenen) return bosForm()
+    const { id: _id, ...degerler } = duzenlenen
+    return degerler
+  })
+  const [hatalar, setHatalar] = useState<string[]>([])
+
+  // Formdaki tek bir alanı günceller
+  function alan<K extends keyof BasvuruIstek>(ad: K, deger: BasvuruIstek[K]) {
+    setForm({ ...form, [ad]: deger })
+  }
+
+  async function gonder(e: FormEvent) {
+    e.preventDefault()
+    // Boş metinleri null'a çevir ([Url] boş metni kabul etmiyor)
+    const govde = {
+      ...form,
+      ilanLinki: form.ilanLinki?.trim() || null,
+      notlar: form.notlar?.trim() || null,
+    }
+    // Düzenlemede PUT, eklemede POST
+    const adres = duzenlenen ? `/api/Basvurular/${duzenlenen.id}` : '/api/Basvurular'
+    const cevap = await fetch(adres, {
+      method: duzenlenen ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(govde),
+    })
+    if (!cevap.ok) {
+      setHatalar(await hataMesajlari(cevap))
+      return
+    }
+    kaydedildi()
+    kapat()
+  }
+
+  return (
+    <div className="perde" onClick={kapat}>
+      <form className="kart modal" onSubmit={gonder} onClick={(e) => e.stopPropagation()}>
+        <h2>{duzenlenen ? 'Başvuruyu düzenle' : 'Yeni başvuru'}</h2>
+
+        <div className="ikili">
+          <label>Şirket*<input value={form.sirketAdi} onChange={(e) => alan('sirketAdi', e.target.value)} /></label>
+          <label>Pozisyon*<input value={form.pozisyon} onChange={(e) => alan('pozisyon', e.target.value)} /></label>
+        </div>
+
+        <div className="ikili">
+          <label>Başvuru tarihi*<input type="date" value={form.basvuruTarihi} onChange={(e) => alan('basvuruTarihi', e.target.value)} /></label>
+          <label>Maaş (₺)
+            <input type="number" value={form.maas ?? ''} onChange={(e) => alan('maas', e.target.value === '' ? null : Number(e.target.value))} />
+          </label>
+        </div>
+
+        <div className="ikili">
+          <label>Durum
+            <select value={form.durum} onChange={(e) => alan('durum', Number(e.target.value))}>
+              {DURUMLAR.map((d, i) => <option key={d} value={i}>{d}</option>)}
+            </select>
+          </label>
+          <label>Nereden başvurdum
+            <select value={form.kaynak} onChange={(e) => alan('kaynak', Number(e.target.value))}>
+              {KAYNAKLAR.map((k, i) => <option key={k} value={i}>{k}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <div className="ikili">
+          <label>Çalışma şekli
+            <select value={form.sekil} onChange={(e) => alan('sekil', Number(e.target.value))}>
+              {SEKILLER.map((s, i) => <option key={s} value={i}>{s}</option>)}
+            </select>
+          </label>
+          <label>Şehir
+            <select value={form.sehir ?? ''} onChange={(e) => alan('sehir', e.target.value === '' ? null : Number(e.target.value))}>
+              <option value="">Belirtilmemiş</option>
+              {SEHIRLER.map((s, i) => <option key={s} value={i}>{s}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <label>İlan linki<input value={form.ilanLinki ?? ''} placeholder="https://..." onChange={(e) => alan('ilanLinki', e.target.value)} /></label>
+        <label>Notlar<textarea rows={3} value={form.notlar ?? ''} onChange={(e) => alan('notlar', e.target.value)} /></label>
+
+        {hatalar.length > 0 && (
+          <ul className="hatalar">
+            {hatalar.map((h) => <li key={h}>{h}</li>)}
+          </ul>
+        )}
+
+        <div className="butonlar">
+          <button type="button" className="metin" onClick={kapat}>Vazgeç</button>
+          <button type="submit" className="ana">Kaydet</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+export default App
