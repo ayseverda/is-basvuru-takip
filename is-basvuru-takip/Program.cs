@@ -1,7 +1,9 @@
 using is_basvuru_takip.data;
+using is_basvuru_takip.Hatalar;
 using is_basvuru_takip.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -19,8 +21,17 @@ builder.Services.AddIdentityApiEndpoints<IdentityUser>()
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+// Yakalanmamýþ hatalarý GlobalHataYoneticisi'ne yönlendir
+builder.Services.AddExceptionHandler<GlobalHataYoneticisi>();
+builder.Services.AddProblemDetails();
 
 var app = builder.Build();
+
+// Hata yöneticisi en baþta olmalý ki sonraki her adýmdaki hatayý yakalayabilsin
+app.UseExceptionHandler();
+
+// Kimlik doðrulama, hata yöneticisinin içinde çalýþsýn
+app.UseAuthentication();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
