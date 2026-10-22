@@ -23,6 +23,9 @@ type Basvuru = {
 type Sayim = { deger: number; sayi: number }
 type Ozet = { toplam: number; durumaGore: Sayim[]; kaynagaGore: Sayim[] }
 
+// Backend'deki IceAktarSonucDto'nun karşılığı
+type IceAktarSonuc = { eklenen: number; atlanan: number; hatali: number; hatalar: string[] }
+
 // Backend'deki BasvuruIstekDto'nun karşılığı (Id yok)
 type BasvuruIstek = Omit<Basvuru, 'id'>
 
@@ -39,7 +42,7 @@ const DURUMLAR = [
   'Cevap yok',
   'Teklif reddedildi',
 ]
-const SEKILLER = ['Ofisten', 'Uzaktan', 'Hibrit']
+const SEKILLER = ['Ofisten', 'Uzaktan', 'Hibrit', 'Belirtilmemiş']
 const KAYNAKLAR = ['Kariyer.net', 'LinkedIn', 'Indeed', 'Şirket sitesi', 'Mail', 'Diğer']
 const SEHIRLER = ['Ankara', 'İstanbul', 'Sakarya', 'Bursa', 'Kocaeli', 'Diğer']
 
@@ -217,6 +220,38 @@ function Panel({ basvurular, yenile }: { basvurular: Basvuru[]; yenile: () => vo
   const [filtre, setFiltre] = useState<number | 'hepsi'>('hepsi')
   const [arama, setArama] = useState('')
   const [ozet, setOzet] = useState<Ozet | null>(null)
+  const [iceAktariliyor, setIceAktariliyor] = useState(false)
+  const [iceAktarSonuc, setIceAktarSonuc] = useState<IceAktarSonuc | null>(null)
+  const [iceAktarHata, setIceAktarHata] = useState('')
+
+  // Seçilen CSV dosyalarını sırayla backend'e yükler ve sonuçları toplar
+  async function linkedInIceAktar(dosyalar: FileList | null) {
+    if (!dosyalar || dosyalar.length === 0) return
+    setIceAktariliyor(true)
+    setIceAktarSonuc(null)
+    setIceAktarHata('')
+
+    const toplam: IceAktarSonuc = { eklenen: 0, atlanan: 0, hatali: 0, hatalar: [] }
+    for (const dosya of Array.from(dosyalar)) {
+      const form = new FormData()
+      form.append('dosya', dosya) // Backend'deki parametre adıyla aynı olmalı
+      const cevap = await fetch('/api/Basvurular/linkedin-ice-aktar', { method: 'POST', body: form })
+      if (!cevap.ok) {
+        const mesaj = (await cevap.text()).replace(/^"|"$/g, '')
+        setIceAktarHata(`${dosya.name}: ${mesaj || `yüklenemedi (kod ${cevap.status})`}`)
+        continue
+      }
+      const sonuc: IceAktarSonuc = await cevap.json()
+      toplam.eklenen += sonuc.eklenen
+      toplam.atlanan += sonuc.atlanan
+      toplam.hatali += sonuc.hatali
+      toplam.hatalar.push(...sonuc.hatalar.map((h) => `${dosya.name} · ${h}`))
+    }
+
+    setIceAktarSonuc(toplam)
+    setIceAktariliyor(false)
+    yenile()
+  }
 
   // Başvurular her değiştiğinde (ekleme, silme, durum değişikliği) özeti backend'den yeniden çek
   useEffect(() => {
@@ -282,8 +317,55 @@ function Panel({ basvurular, yenile }: { basvurular: Basvuru[]; yenile: () => vo
             {basvurular.length} toplam · {bekleyenSayisi} cevap bekliyor · {mulakatSayisi} mülakat/test · {redSayisi} ret
           </p>
         </div>
-        <button className="ana" onClick={yeniAc}>+ Yeni başvuru</button>
+        <div className="ust-butonlar">
+          {/* Gerçek dosya seçici gizli; görünen düğme onu tetikliyor */}
+          <label className={`ikincil${iceAktariliyor ? ' pasif' : ''}`}>
+            {iceAktariliyor ? 'İçe aktarılıyor…' : "LinkedIn'den içe aktar"}
+            <input
+              type="file"
+              accept=".csv"
+              multiple
+              hidden
+              disabled={iceAktariliyor}
+              onChange={(e) => {
+                linkedInIceAktar(e.target.files)
+                e.target.value = '' // Aynı dosya tekrar seçilebilsin
+              }}
+            />
+          </label>
+          <button className="ana" onClick={yeniAc}>+ Yeni başvuru</button>
+        </div>
       </header>
+
+      {(iceAktarSonuc || iceAktarHata) && (
+        <div className="ice-aktar-sonuc" role="status">
+          <div className="ice-aktar-ust">
+            {iceAktarSonuc && (
+              <span>
+                <strong>{iceAktarSonuc.eklenen}</strong> başvuru eklendi ·{' '}
+                <strong>{iceAktarSonuc.atlanan}</strong> tanesi zaten vardı ·{' '}
+                <strong>{iceAktarSonuc.hatali}</strong> satır okunamadı
+              </span>
+            )}
+            {iceAktarHata && <span className="tehlike-yazi">{iceAktarHata}</span>}
+            <button
+              type="button"
+              className="metin"
+              onClick={() => { setIceAktarSonuc(null); setIceAktarHata('') }}
+            >
+              Kapat
+            </button>
+          </div>
+          {iceAktarSonuc && iceAktarSonuc.hatalar.length > 0 && (
+            <details>
+              <summary>Okunamayan satırlar</summary>
+              <ul>
+                {iceAktarSonuc.hatalar.map((h) => <li key={h}>{h}</li>)}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
 
       {ozet && ozet.toplam > 0 && (
         <section className="grafikler">

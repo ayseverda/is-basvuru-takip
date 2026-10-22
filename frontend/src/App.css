@@ -108,6 +108,40 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--vurgu); out
 .lejant-sayi { font-weight: 600; font-variant-numeric: tabular-nums; }
 .lejant-yuzde { color: var(--soluk); text-align: right; font-variant-numeric: tabular-nums; }
 
+.ust-butonlar { display: flex; gap: 8px; flex-wrap: wrap; }
+label.ikincil {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--yazi);
+  background: var(--yuzey-2);
+  border: 1px solid var(--cizgi);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+label.ikincil:hover { border-color: var(--vurgu); }
+label.ikincil.pasif { opacity: 0.6; cursor: progress; }
+label.ikincil:focus-within { outline: 2px solid var(--vurgu); }
+
+.ice-aktar-sonuc {
+  background: var(--yuzey);
+  border: 1px solid var(--cizgi);
+  border-left: 3px solid var(--vurgu);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.92rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ice-aktar-ust { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ice-aktar-sonuc strong { font-variant-numeric: tabular-nums; }
+.ice-aktar-sonuc details summary { cursor: pointer; color: var(--soluk); }
+.ice-aktar-sonuc ul { margin: 6px 0 0; padding-left: 20px; color: var(--soluk); max-height: 160px; overflow: auto; }
+.tehlike-yazi { color: var(--tehlike); }
+
 .arac-cubugu { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .arac-cubugu input { flex: 1; min-width: 220px; }
 
