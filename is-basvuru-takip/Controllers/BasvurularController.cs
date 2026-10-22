@@ -14,13 +14,15 @@ namespace is_basvuru_takip.Controllers;
 public class BasvurularController : ControllerBase
 {
     private readonly IBasvuruService _service;
+    private readonly ILinkedInIceAktarService _iceAktarService;
 
     // Uygulama, Program.cs'te kaydettiğimiz service'i buraya kendisi verir
-    public BasvurularController(IBasvuruService service)
+    public BasvurularController(IBasvuruService service, ILinkedInIceAktarService iceAktarService)
     {
         _service = service;
+        _iceAktarService = iceAktarService;
     }
-
+ 
     [HttpGet]
     public async Task<IActionResult> GetBasvurular()
     {
@@ -99,5 +101,24 @@ public class BasvurularController : ControllerBase
         }
         var ozet = await _service.OzetGetirAsync(userId);
         return Ok(ozet);
+    }
+
+    [HttpPost("linkedin-ice-aktar")]
+
+    public async Task<IActionResult> LinkedInIceAktar(IFormFile dosya)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null)
+        {
+            return Unauthorized();
+        }
+
+        if (dosya == null || dosya.Length == 0)
+            return BadRequest("Dosya boş ya da seçilmedi.");
+
+       using var akis = dosya.OpenReadStream();
+        var sonuc = await _iceAktarService.IceAktarAsync(userId, akis);
+           
+        return Ok(sonuc);
     }
 }

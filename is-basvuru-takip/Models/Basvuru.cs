@@ -39,7 +39,8 @@ namespace is_basvuru_takip.Models
     {
         Ofisten,
         Uzaktan,
-        Hibrit
+        Hibrit,
+        Belirtilmemis
     }
 
     public enum BasvuruDurumu
@@ -51,7 +52,7 @@ namespace is_basvuru_takip.Models
         TeklifAlindi,
         TeklifKabulEdildi,
         CevapYok,
-        TeklifReddedildi,
+        TeklifReddedildi
         
 
     }

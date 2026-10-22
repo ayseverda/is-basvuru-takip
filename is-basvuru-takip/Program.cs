@@ -14,6 +14,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 // "Biri IBasvuruService isterse ona BasvuruService ver"
 builder.Services.AddScoped<IBasvuruService, BasvuruService>();
+builder.Services.AddScoped<ILinkedInIceAktarService, LinkedInIceAktarService>();
 // Kullanýcý sistemini ekle: kullanýcýlar AppDbContext üzerinden veritabanýna kaydedilsin
 builder.Services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<IdentityUser>()
