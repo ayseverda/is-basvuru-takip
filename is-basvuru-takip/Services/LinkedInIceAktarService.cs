@@ -22,7 +22,7 @@ public class LinkedInIceAktarService : ILinkedInIceAktarService
         var sonuc = new IceAktarSonucDto();
 
         // 2. Kullanıcının zaten kayıtlı olan ilan linklerini bul
-        var mevcutBasvurular = await _basvuruService.ListeleAsync(userId,null);
+        var mevcutBasvurular = await _basvuruService.ListeleAsync(userId,null,null);
         var mevcutLinkler = mevcutBasvurular
             .Where(b => b.IlanLinki != null)
             .Select(b => b.IlanLinki!)

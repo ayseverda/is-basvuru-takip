@@ -8,7 +8,7 @@ namespace is_basvuru_takip.Services;
 public interface IBasvuruService
 {
    // Task<List<BasvuruDto>> ListeleAsync(string userId);
-    Task<List<BasvuruDto>> ListeleAsync(string userId,BasvuruDurumu? durum);
+    Task<List<BasvuruDto>> ListeleAsync(string userId,BasvuruDurumu? durum, Sehir? sehir);
 
     Task<BasvuruDto?> GetirAsync(int id, string userId);
     Task<BasvuruDto> EkleAsync(BasvuruIstekDto dto, string userId);

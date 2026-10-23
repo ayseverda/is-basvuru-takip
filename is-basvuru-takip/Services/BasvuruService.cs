@@ -66,7 +66,7 @@ public class BasvuruService : IBasvuruService
              .ToListAsync();
      } */
 
-    public async Task<List<BasvuruDto>> ListeleAsync(string userId, BasvuruDurumu? durum)
+    public async Task<List<BasvuruDto>> ListeleAsync(string userId, BasvuruDurumu? durum, Sehir? sehir)
     {
         var sorgu = _context.Basvurular.Where(b => b.UserId == userId);
                                       
@@ -74,6 +74,10 @@ public class BasvuruService : IBasvuruService
         if (durum != null)
         {
             sorgu = sorgu.Where(b => b.Durum == durum);
+        }
+        if (sehir != null)
+        {
+            sorgu = sorgu.Where(b => b.Sehir == sehir);
         }
         return await sorgu
                .OrderByDescending(b => b.BasvuruTarihi)

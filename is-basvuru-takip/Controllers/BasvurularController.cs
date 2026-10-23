@@ -27,12 +27,12 @@ public class BasvurularController : ControllerBase
     }
  
     [HttpGet]
-    public async Task<IActionResult> GetBasvurular([FromQuery] BasvuruDurumu? durum)
+    public async Task<IActionResult> GetBasvurular([FromQuery] BasvuruDurumu? durum, [FromQuery] Sehir? sehir)
     {
         // Kullanıcının ID'sini al
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId == null) return Unauthorized();
-        var basvurular = await _service.ListeleAsync(userId, durum);
+        var basvurular = await _service.ListeleAsync(userId, durum, sehir);
         return Ok(basvurular);
     }
 
