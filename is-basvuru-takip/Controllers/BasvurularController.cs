@@ -4,6 +4,7 @@ using is_basvuru_takip.Models;
 using is_basvuru_takip.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -107,7 +108,7 @@ public class BasvurularController : ControllerBase
     }
 
     [HttpPost("linkedin-ice-aktar")]
-
+    [EnableRateLimiting("sabit")]
     public async Task<IActionResult> LinkedInIceAktar(IFormFile dosya)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
