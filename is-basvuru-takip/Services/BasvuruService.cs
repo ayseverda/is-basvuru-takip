@@ -57,13 +57,28 @@ public class BasvuruService : IBasvuruService
 
     // ---------- Menüdeki işler ----------
 
-    public async Task<List<BasvuruDto>> ListeleAsync(string userId)
+    /* public async Task<List<BasvuruDto>> ListeleAsync(string userId)
+     {
+         return await _context.Basvurular
+             .Where(b => b.UserId == userId)
+             .OrderByDescending(b => b.BasvuruTarihi)
+             .Select(b => DtoyaCevir(b))
+             .ToListAsync();
+     } */
+
+    public async Task<List<BasvuruDto>> ListeleAsync(string userId, BasvuruDurumu? durum)
     {
-        return await _context.Basvurular
-            .Where(b => b.UserId == userId)
-            .OrderByDescending(b => b.BasvuruTarihi)
-            .Select(b => DtoyaCevir(b))
-            .ToListAsync();
+        var sorgu = _context.Basvurular.Where(b => b.UserId == userId);
+                                      
+        //durum geldiyse filtrele, gelmediyse dokunma
+        if (durum != null)
+        {
+            sorgu = sorgu.Where(b => b.Durum == durum);
+        }
+        return await sorgu
+               .OrderByDescending(b => b.BasvuruTarihi)
+                                       .Select(b => DtoyaCevir(b))
+                                       .ToListAsync();
     }
 
     public async Task<BasvuruDto?> GetirAsync(int id, string userId)

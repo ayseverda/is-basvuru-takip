@@ -1,4 +1,5 @@
 ﻿using is_basvuru_takip.Dtos;
+using is_basvuru_takip.Models;
 
 namespace is_basvuru_takip.Services;
 
@@ -6,11 +7,15 @@ namespace is_basvuru_takip.Services;
 // Ne yapılacağını söyler, nasıl yapılacağını değil.
 public interface IBasvuruService
 {
-    Task<List<BasvuruDto>> ListeleAsync(string userId);
+   // Task<List<BasvuruDto>> ListeleAsync(string userId);
+    Task<List<BasvuruDto>> ListeleAsync(string userId,BasvuruDurumu? durum);
+
     Task<BasvuruDto?> GetirAsync(int id, string userId);
     Task<BasvuruDto> EkleAsync(BasvuruIstekDto dto, string userId);
     Task<bool> GuncelleAsync(int id, BasvuruIstekDto dto, string userId);
     Task<bool> SilAsync(int id, string userId);
 
     Task<OzetDto> OzetGetirAsync(string userId);
+
+
 }
