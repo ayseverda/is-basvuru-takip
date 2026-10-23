@@ -6,13 +6,16 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Security.Cryptography;
 namespace is_basvuru_takip.Controllers;
 
 [ApiController] // Bu sınıfın bir API controller’ı olduğunu söyler.
 [Route("api/[controller]")]
 [Authorize]
+
 public class BasvurularController : ControllerBase
 {
+    private const long MaksimumDosyaBoyutu = 5 * 1024 * 1024; // 5 MB (bayt cinsinden)
     private readonly IBasvuruService _service;
     private readonly ILinkedInIceAktarService _iceAktarService;
 
@@ -112,11 +115,16 @@ public class BasvurularController : ControllerBase
         {
             return Unauthorized();
         }
+       
 
         if (dosya == null || dosya.Length == 0)
             return BadRequest("Dosya boş ya da seçilmedi.");
+        if (dosya.Length > MaksimumDosyaBoyutu)
+        {
+            return BadRequest("Dosya 5 MB’tan büyük olamaz.");
+        }
 
-       using var akis = dosya.OpenReadStream();
+        using var akis = dosya.OpenReadStream();
         var sonuc = await _iceAktarService.IceAktarAsync(userId, akis);
            
         return Ok(sonuc);
