@@ -79,7 +79,7 @@ public class LinkedInIceAktarService : ILinkedInIceAktarService
 
 
     // Bir CSV satırını başvuruya çevirir; sorun varsa hata fırlatır
-    private static BasvuruIstekDto SatiriCevir(string[] p)
+    public static BasvuruIstekDto SatiriCevir(string[] p)
     {
         // Tarihteki virgül yüzünden "8/14/26" ve " 3:02 AM" iki parçaya bölünüyor.
         // İkinci parça saatse birleştir; diğer bütün sütunlar bir sağa kaymış demektir.
@@ -119,7 +119,7 @@ public class LinkedInIceAktarService : ILinkedInIceAktarService
     }
 
     // LinkedIn'in bozduğu Türkçe karakterleri düzeltir ("YazÄ±lÄ±m" → "Yazılım")
-    private static string KarakterDuzelt(string metin)
+    public static string KarakterDuzelt(string metin)
     {
         // Bozulma belirtisi yoksa dokunma
         if (!metin.Any(c => c == 'Ã' || c == 'Ä' || c == 'Å' || c == 'Ì'))
